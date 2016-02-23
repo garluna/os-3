@@ -182,7 +182,7 @@ typedef struct ospfs_symlink_inode {
  *   The whole structure is 128 bytes long, so the longest filename that can be
  *   stored is 123 bytes (128 bytes - 4 bytes for the inode - 1 byte for the
  *   terminating null character).
- *ospfs_inode_t
+ *
  *****************************************************************************/
 
 #define OSPFS_DIRENTRY_SIZE	128
