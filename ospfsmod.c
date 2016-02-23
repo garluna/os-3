@@ -819,7 +819,7 @@ add_block(ospfs_inode_t *oi)
 	}
 
 	/* Double indirect block needed */
-	else
+	else if (n < OSPFS_MAXFILEBLKS)
 	{
 		if (n == OSPFS_NDIRECT + OSPFS_NINDIRECT)
 		{
@@ -867,6 +867,9 @@ add_block(ospfs_inode_t *oi)
 		allocated[0] = block3;
 		return 0;
 	}
+
+	/* Should never ge tot this line */
+	return 0;
 }
 
 
@@ -903,7 +906,65 @@ remove_block(ospfs_inode_t *oi)
 	{
 		return -EIO; 
 	}
+
+	if (n == 0)
+	{
+		return 0;
+	}
+
+	n -= 1;
+
+	/* No indirect entries */
+	if (indir_index(n) == -1)
+	{
+		free_block(n);
+		oi -> oi_direct[n] = 0;
+	}
+
+	/* One indirect block */
+	else if (indir2_index(n) != 0)
+	{
+		uint32_t* block = ospfs_block(oi -> oi_indirect); 
+
+		free_block(block[direct_index(n)]);
+		block[direct_index(n)] = 0;	
+
+		if (direct_index(n) == 0)
+		{
+			free_block(oi -> oi_indirect);
+			oi -> oi_indirect = 0;
+		}
+	}
+
+	/* Both indirect blocks used */
+	else if (n < OSPFS_MAXFILEBLKS)
+	{
+		uint32_t* block2Sector = ospfs_block(oi -> oi_indirect2);
+		uint32_t* block2 = ospfs_block(block2Sector[indir_index(n)]);
+		
+		free_block(block2[direct_index(n)]);
+		block2[direct_index(n)] = 0;
+
+		if (direct_index(n) == 0)
+		{
+			free_block(block2Sector[indir_index(n)]);
+			block2Sector[indir_index(n)] = 0;
+		}
+
+		if (indir_index(n) == 0)
+		{
+			free_block(oi -> oi_indirect2);
+			oi -> oi_indirect2 = 0;
+		}
+	}
 	
+	else
+	{
+		return -EIO;
+	}
+
+	oi -> oi_size -= OSPFS_BLKSIZE;
+	return 0;
 }
 
 
