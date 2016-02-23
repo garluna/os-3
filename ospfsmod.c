@@ -662,9 +662,9 @@ indir2_index(uint32_t b)
 	// Your code here.
 	if (b < OSPFS_NDIRECT + OSPFS_NINDIRECT)
 	{
-		return 0;
+		return -1;
 	}
-	return -1;
+	return 0;
 }
 
 
@@ -691,7 +691,7 @@ indir_index(uint32_t b)
 	{
 		return 0;
 	}
-	return (b - (OSPFS_NDIRECT + OSPFS_NINDIRECT) / OSPFS_NINDIRECT); //TACO check
+	return ((b - (OSPFS_NDIRECT + OSPFS_NINDIRECT)) / OSPFS_NINDIRECT); //TACO check
 }
 
 
@@ -712,7 +712,7 @@ direct_index(uint32_t b)
 	{
 		return b;
 	}
-	if (indir2_index(b) == 0)
+	if (indir2_index(b) == -1)
 	{
 		return b - OSPFS_NDIRECT;
 	}
@@ -1459,8 +1459,32 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
 	uint32_t entry_ino = 0;
 
-	/* EXERCISE: Your code here. */
-	return -EINVAL;
+	/* Checks if the name is the right length */
+	if (strlen(symname) > OSPFS_MAXSYMLINKLEN || dentry -> d_name.name > OSPFS_MAXNAMELEN)
+	{
+		return -ENAMETOOLONG;
+	}
+
+	/* Checks that link of same name doesn't already exist */
+	ospfs_direntry_t* filePath = find_direntry(ospfs_inode(dir -> i_ino), dentry -> d_name.name, dentry -> d_name.len);
+	if (filePath)
+	{
+		return -EEXIST;
+	}
+
+	entry_ino = ospfs_create(dir, dentry, dir_oi -> oi_mode, NULL);
+	if (entry_ino < 0)
+	{
+		return entry_ino;
+	}
+	
+	entry_ino = filePath -> od_ino;
+	ospfs_symlink_inode_t* linkIno = (ospfs_symlink_inode_t*) ospfs_inode(entry_ino);
+
+	linkIno -> oi_size = strlen(symname);
+	linkIno -> oi_nlink = 1;
+	linkIno -> oi_ftype = OSPFS_FTYPE_SYMLINK;
+	memcpy(linkIno -> oi_symlink, symname, strlen(symname));
 
 	/* Execute this code after your function has successfully created the
 	   file.  Set entry_ino to the created file's inode number before
