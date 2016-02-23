@@ -1336,11 +1336,11 @@ create_blank_direntry(ospfs_inode_t *dir_oi)
 
 		// Cases for when change_size fails 
 		case -ENOSPC: 
-			return ERR_PTR(-ENOSPC); 
+			return (ospfs_direntry_t *) ERR_PTR(-ENOSPC); 
 		case -EIO: 
-			return ERR_PTR(-EIO); 
+			return (ospfs_direntry_t *) ERR_PTR(-EIO); 
 		default: 
-			return ERR_PTR(-EINVAL);
+			return (ospfs_direntry_t *) ERR_PTR(-EINVAL);
 	}
 }
 
@@ -1376,9 +1376,37 @@ create_blank_direntry(ospfs_inode_t *dir_oi)
 static int
 ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dentry) {
 	/* EXERCISE: Your code here. */
+	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
+	ospfs_inode_t *src_oi = ospfs_inode(src_dentry->d_inode->i_ino);
+	
+	// Input error checking
+	// Filename too long
+	if (dst_dentry->d_name.len > OSPFS_MAXNAMELEN)
+		return -ENAMETOOLONG;
+	// Invalid pointers
+	if (src_dentry == NULL || dir == NULL || dst_dentry == NULL)
+		return -EIO;
+	// Determine if dst_entry exists in directory
+	if(find_direntry(dir_oi,dst_dentry->d_name.name, dst_dentry->d_name.len) != NULL)
+		return -EEXIST; 
 
-	// 
-	return -EINVAL;
+	// Attempt to create the hardlink
+	ospfs_direntry_t *new_entry = create_blank_direntry(dir_oi);
+
+	// Error Checking for create_blank_directory
+	if (IS_ERR(new_entry))
+		return PTR_ERR(new_entry);
+
+	// If the blank directory entry is created successfully
+	new_entry->od_ino = src_dentry->d_inode->i_ino; // Copy src's inode
+	memcpy(new_entry->od_name, dst_dentry->d_name.name, (size_t) dst_dentry->d_name.len); // Copy filename
+	new_entry->od_name[dst_dentry->d_name.len] = '\0'; // Append nullbyte
+
+	// Increment link count for directory and file 
+	dir_oi->oi_nlink++;
+	src_oi->oi_nlink++;
+	
+	return 0; 
 }
 
 // ospfs_create
