@@ -94,7 +94,7 @@ static struct super_operations ospfs_superblock_ops;
 /*****************************************************************************
  * BITVECTOR OPERATIONS
  *
- *   OSPFS uses a free bitmap to keep track of free blocks.
+ *   OSPFS uses a free bitmap to keep track of os blocks.
  *   These bitvector operations, which set, clear, and test individual bits
  *   in a bitmap, may be useful.
  */
@@ -1444,7 +1444,51 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
 	uint32_t entry_ino = 0;
 	/* EXERCISE: Your code here. */
-	return -EINVAL; // Replace this line
+	// Input error checking
+	// Filename too long
+	if (dentry->d_name.len > OSPFS_MAXNAMELEN)
+		return -ENAMETOOLONG;
+	// Invalid pointers
+	if (dentry == NULL || dir == NULL || dir_oi == NULL)
+		return -EIO;
+	// Determine if dentry exists in directory
+	if(find_direntry(dir_oi,dentry->d_name.name, dentry->d_name.len))
+		return -EEXIST; 
+
+	// Find empty inode
+	ospfs_inode_t* node; // Pointer variable to found empty inode
+	uint32_t inode_iter = 2;
+	for( ; inode_iter < ospfs_super->os_ninodes; inode_iter++)
+	{
+		node = ospfs_inode(inode_iter); 
+		if(node->oi_nlink == 0){
+			entry_ino = inode_iter; 
+			break;
+		}
+	}
+
+	// Unable to find empty inode 
+	if(entry_ino == 0)
+		return -ENOSPC; 
+
+	// Create empty directory entry 
+	ospfs_direntry_t* new_entry = create_blank_direntry(dir_oi);
+	// Error Checking for create_blank_directory
+	if (IS_ERR(new_entry))
+		return PTR_ERR(new_entry);
+
+	// If blank entry successfully created, copy over file info
+	memcpy(new_entry->od_name, dentry->d_name.name, (size_t) dentry->d_name.len); // Copy filename
+	new_entry->od_name[dentry->d_name.len] = '\0'; // Append nullbyte
+	new_entry->od_ino = entry_ino;
+
+	node->oi_size = 0; 
+	node->oi_ftype = OSPFS_FTYPE_REG; 
+	node->oi_nlink = 1; 
+	node->oi_mode = mode; 
+
+	// Increment directory link count for newly created file 
+	dir_oi->oi_nlink++;
 
 	/* Execute this code after your function has successfully created the
 	   file.  Set entry_ino to the created file's inode number before
@@ -1488,7 +1532,7 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	uint32_t entry_ino = 0;
 
 	/* Checks if the name is the right length */
-	if (strlen(symname) > OSPFS_MAXSYMLINKLEN || dentry -> d_name.name > OSPFS_MAXNAMELEN)
+	if (strlen(symname) > OSPFS_MAXSYMLINKLEN || dentry -> d_name.len > OSPFS_MAXNAMELEN)
 	{
 		return -ENAMETOOLONG;
 	}
