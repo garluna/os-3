@@ -1122,11 +1122,11 @@ create_blank_direntry(ospfs_inode_t *dir_oi)
 
 		// Cases for when change_size fails 
 		case -ENOSPC: 
-			return ERR_PTR(-ENOSPC); 
+			return (ospfs_direntry_t *) ERR_PTR(-ENOSPC); 
 		case -EIO: 
-			return ERR_PTR(-EIO); 
+			return (ospfs_direntry_t *) ERR_PTR(-EIO); 
 		default: 
-			return ERR_PTR(-EINVAL);
+			return (ospfs_direntry_t *) ERR_PTR(-EINVAL);
 	}
 }
 
@@ -1163,7 +1163,14 @@ static int
 ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dentry) {
 	/* EXERCISE: Your code here. */
 
-	// 
+	// Make sure filename is not too long
+	if (dst_dentry->d_name.len > OSPFS_MAXNAMELEN)
+		return -ENAMETOOLONG;
+
+	// Determine if dst_entry exists in directory
+	
+
+	// Find the OSPFS inode
 	return -EINVAL;
 }
 
