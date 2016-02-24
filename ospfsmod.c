@@ -1535,28 +1535,54 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	if (strlen(symname) > OSPFS_MAXSYMLINKLEN || dentry -> d_name.len > OSPFS_MAXNAMELEN)
 	{
 		return -ENAMETOOLONG;
+
 	}
 
 	/* Checks that link of same name doesn't already exist */
-	ospfs_direntry_t* filePath = find_direntry(ospfs_inode(dir -> i_ino), dentry -> d_name.name, dentry -> d_name.len);
+	ospfs_direntry_t* filePath = find_direntry(dir_oi, dentry -> d_name.name, dentry -> d_name.len);
 	if (filePath)
 	{
 		return -EEXIST;
 	}
-
-	entry_ino = ospfs_create(dir, dentry, dir_oi -> oi_mode, NULL);
-	if (entry_ino < 0)
-	{
-		return entry_ino;
-	}
 	
-	entry_ino = filePath -> od_ino;
-	ospfs_symlink_inode_t* linkIno = (ospfs_symlink_inode_t*) ospfs_inode(entry_ino);
+	/* Need to find a free inode */
+	ospfs_inode_t* node; // Pointer variable to found empty inode
+	uint32_t inode_iter = 2;
+	for( ; inode_iter < ospfs_super->os_ninodes; inode_iter++)
+	{
+		node = ospfs_inode(inode_iter); 
+		if(node->oi_nlink == 0){
+			entry_ino = inode_iter; 
+			break;
+		}
+	}
 
-	linkIno -> oi_size = strlen(symname);
-	linkIno -> oi_nlink = 1;
-	linkIno -> oi_ftype = OSPFS_FTYPE_SYMLINK;
-	memcpy(linkIno -> oi_symlink, symname, strlen(symname));
+	// Unable to find empty inode 
+	if(entry_ino == 0)
+		return -ENOSPC; 
+
+	ospfs_direntry_t* entry = create_blank_direntry(dir_oi);
+
+	if (IS_ERR(entry))
+	{
+		return PTR_ERR(entry);
+	}
+
+	if (entry == NULL)
+	{
+		return -EIO;
+	}
+
+	entry -> od_ino = entry_ino;
+	strcpy(entry -> od_name, dentry -> d_name.name);
+
+	ospfs_inode_t* newFile = ospfs_inode(entry_ino);
+	
+	newFile -> oi_nlink = 1;
+	newFile -> oi_ftype = OSPFS_FTYPE_SYMLINK;
+
+	strcpy(newFile -> oi_symlink, symname);
+	newFile -> oi_size = strlen(symname);
 
 	/* Execute this code after your function has successfully created the
 	   file.  Set entry_ino to the created file's inode number before
