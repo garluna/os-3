@@ -921,14 +921,14 @@ remove_block(ospfs_inode_t *oi)
 	/* No indirect entries */
 	if (indir_index(n) == -1)
 	{
-		free_block(n);
+		free_block(oi -> oi_direct[n]);
 		oi -> oi_direct[n] = 0;
 	}
 
 	/* One indirect block */
 	else if (indir2_index(n) != 0)
 	{
-		uint32_t* block = ospfs_block(oi -> oi_indirect); 
+		uint32_t* block = (uint32_t*) ospfs_block(oi -> oi_indirect); 
 
 		free_block(block[direct_index(n)]);
 		block[direct_index(n)] = 0;	
@@ -943,8 +943,8 @@ remove_block(ospfs_inode_t *oi)
 	/* Both indirect blocks used */
 	else if (n < OSPFS_MAXFILEBLKS)
 	{
-		uint32_t* block2Sector = ospfs_block(oi -> oi_indirect2);
-		uint32_t* block2 = ospfs_block(block2Sector[indir_index(n)]);
+		uint32_t* block2Sector = (uint32_t*) ospfs_block(oi -> oi_indirect2);
+		uint32_t* block2 = (uint32_t*) ospfs_block(block2Sector[indir_index(n)]);
 		
 		free_block(block2[direct_index(n)]);
 		block2[direct_index(n)] = 0;
