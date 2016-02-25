@@ -555,8 +555,12 @@ ospfs_unlink(struct inode *dirino, struct dentry *dentry)
 		return -ENOENT;
 	}
 
-	od->od_ino = 0;
 	oi->oi_nlink--;
+	od->od_ino = 0;
+
+	// Change size of the file aka empty out if it's a regular file or directory
+	if((oi->oi_nlink == 0) && (oi->oi_ftype != OSPFS_FTYPE_SYMLINK))
+		change_size(oi,0);
 	return 0;
 }
 
