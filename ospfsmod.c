@@ -762,7 +762,7 @@ add_block(ospfs_inode_t *oi)
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
 
 	// keep track of allocations to free in case of -ENOSPC
-	uint32_t *allocated[2] = { 0, 0 };
+	uint32_t allocated[2] = { 0, 0 };
 
 	/* EXERCISE: Your code here */
 	if (n < 0)
