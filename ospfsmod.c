@@ -1540,7 +1540,7 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 
 	/* Checks that link of same name doesn't already exist */
 	ospfs_direntry_t* filePath = find_direntry(dir_oi, dentry -> d_name.name, dentry -> d_name.len);
-	if (filePath)
+	if (filePath != NULL)
 	{
 		return -EEXIST;
 	}
@@ -1574,11 +1574,12 @@ ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 	}
 
 	entry -> od_ino = entry_ino;
-	strcpy(entry -> od_name, dentry -> d_name.name);
+	memcpy(entry -> od_name, dentry -> d_name.name, dentry -> d_name.len);
+	entry -> od_name[dentry -> d_name.len] = '\0';
 
-	ospfs_inode_t* newFile = ospfs_inode(entry_ino);
+	ospfs_symlink_inode_t* newFile = (ospfs_symlink_inode_t*)(ospfs_inode(entry_ino));
 	
-	newFile -> oi_nlink = 1;
+	newFile -> oi_nlink++;
 	newFile -> oi_ftype = OSPFS_FTYPE_SYMLINK;
 
 	strcpy(newFile -> oi_symlink, symname);
